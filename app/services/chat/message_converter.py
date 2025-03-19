@@ -41,8 +41,10 @@ def _get_mime_type_and_data(base64_string):
     return None, base64_string
 
 def _convert_image(image_url: str) -> Dict[str, Any]:
+    print(f"image_url: {image_url}")
     if image_url.startswith("http"):
         image_url = _convert_image_to_base64(image_url)
+    print(f"image_url: {image_url}")
     if image_url.startswith("data:image"):
         mime_type, encoded_data = _get_mime_type_and_data(image_url)
         return {
