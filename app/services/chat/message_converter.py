@@ -140,6 +140,8 @@ class OpenAIMessageConverter(MessageConverter):
             elif role == "function":
                 # 转换为Gemini的functionResponse格式
                 print(f"function: {msg}")
+                if msg.get("name"):
+                    msg["name"] = msg.get("tool_call_id")
                 parts.append({
                     "function_response": {
                         "name": msg.get("name"),
