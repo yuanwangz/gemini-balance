@@ -119,7 +119,7 @@ class OpenAIMessageConverter(MessageConverter):
             role = msg.get("role", "")
             if role not in SUPPORTED_ROLES:
                 if role == "tool":
-                    role = "user"
+                    role = "function"
                 else:
                     # 如果是最后一条消息，则认为是用户消息
                     if idx == len(messages) - 1:
@@ -137,6 +137,16 @@ class OpenAIMessageConverter(MessageConverter):
                         continue
                     # 处理可能包含图片的文本
                     parts.extend(_process_text_with_image(part))
+            elif role == "function":
+                # 转换为Gemini的functionResponse格式
+                parts.append({
+                    "functionResponse": {
+                        "name": msg.get("name"),
+                        "response": {
+                            "content": msg.get("content")
+                        }
+                    }
+                })
             elif isinstance(msg["content"], str) and msg["content"]:
                 # 请求 gemini 接口时如果包含 content 字段但内容为空时会返回 400 错误，所以需要判断是否为空并移除
                 parts.extend(_process_text_with_image(msg["content"]))
