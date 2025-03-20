@@ -135,8 +135,8 @@ class OpenAIMessageConverter(MessageConverter):
                 for part in content_parts:
                     if not part.strip():  # 跳过空内容
                         continue
-                # 处理可能包含图片的文本
-                parts.extend(_process_text_with_image(part))
+                    # 处理可能包含图片的文本
+                    parts.extend(_process_text_with_image(part))
                 
             elif role == "function":
                 # 处理工具返回的消息 - Gemini格式为functionResponse
