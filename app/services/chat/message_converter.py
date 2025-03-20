@@ -139,8 +139,9 @@ class OpenAIMessageConverter(MessageConverter):
                     parts.extend(_process_text_with_image(part))
             elif role == "function":
                 # 转换为Gemini的functionResponse格式
+                print(f"function: {msg}")
                 parts.append({
-                    "functionResponse": {
+                    "function_response": {
                         "name": msg.get("name"),
                         "response": {
                             "content": msg.get("content")
