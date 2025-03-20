@@ -142,6 +142,7 @@ class OpenAIMessageConverter(MessageConverter):
                 # 先确保有name字段，如果没有则尝试使用tool_call_id
                 function_name = msg.get("name") or msg.get("tool_call_id") or "unknown_function"
                 # 转换为Gemini的functionResponse格式
+                function_name = "GenerateImage"
                 parts.append({
                     "functionResponse": {
                         "name": function_name,
