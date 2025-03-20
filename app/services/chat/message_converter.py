@@ -129,13 +129,14 @@ class OpenAIMessageConverter(MessageConverter):
 
             parts = []
             # 特别处理最后一个assistant的消息，按\n\n分割
-            if role == "assistant" and idx == len(messages) - 2 and isinstance(msg["content"], str) and msg["content"]:
+            if role == "assistant" and idx == len(messages) - 2 :
                 print(f"assistant msg: {msg}")
-                # 按\n\n分割消息
-                content_parts = msg["content"].split("\n\n")
-                for part in content_parts:
-                    if not part.strip():  # 跳过空内容
-                        continue
+                if isinstance(msg["content"], str) and msg["content"]:
+                    # 按\n\n分割消息
+                    content_parts = msg["content"].split("\n\n")
+                    for part in content_parts:
+                        if not part.strip():  # 跳过空内容
+                            continue
                     # 处理可能包含图片的文本
                     parts.extend(_process_text_with_image(part))
                 tool_calls = msg.get("tool_calls", [])
