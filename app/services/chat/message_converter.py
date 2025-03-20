@@ -130,7 +130,6 @@ class OpenAIMessageConverter(MessageConverter):
             parts = []
             # 特别处理最后一个assistant的消息，按\n\n分割
             if role == "model" and idx == len(messages) - 2 :
-                print(f"assistant msg: {msg}")
                 if isinstance(msg["content"], str) and msg["content"]:
                     # 按\n\n分割消息
                     content_parts = msg["content"].split("\n\n")
@@ -161,7 +160,6 @@ class OpenAIMessageConverter(MessageConverter):
                 # 先确保有name字段，如果没有则尝试使用tool_call_id
                 function_name = msg.get("name") or msg.get("tool_call_id") or "unknown_function"
                 # 转换为Gemini的functionResponse格式
-                print(f"function: {msg}")
                 parts.append({
                     "functionResponse": {
                         "name": function_name,
