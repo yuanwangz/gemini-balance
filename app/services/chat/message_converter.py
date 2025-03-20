@@ -129,7 +129,7 @@ class OpenAIMessageConverter(MessageConverter):
 
             parts = []
             # 特别处理最后一个assistant的消息，按\n\n分割
-            if role == "assistant" and idx == len(messages) - 2 :
+            if role == "model" and idx == len(messages) - 2 :
                 print(f"assistant msg: {msg}")
                 if isinstance(msg["content"], str) and msg["content"]:
                     # 按\n\n分割消息
