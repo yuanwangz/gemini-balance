@@ -138,24 +138,6 @@ class OpenAIMessageConverter(MessageConverter):
                 # 处理可能包含图片的文本
                 parts.extend(_process_text_with_image(part))
                 
-            elif role == "model":
-                tool_calls = msg.get("tool_calls", [])
-                if tool_calls:
-                    for tool_call in tool_calls:
-                        args = tool_call.get("function").get("arguments")
-                        # 判断是否为json字符串,如果不是则尝试转换
-                        if isinstance(args, str):
-                            try:
-                                args = json.loads(args)
-                            except json.JSONDecodeError:
-                                print(f"args is not a json string: {args}")
-                                pass
-                        parts.append({
-                            "functionCall": {
-                                "name": tool_call.get("function").get("name"),
-                                "args": args
-                            }
-                        })
             elif role == "function":
                 # 处理工具返回的消息 - Gemini格式为functionResponse
                 # 先确保有name字段，如果没有则尝试使用tool_call_id
@@ -183,7 +165,25 @@ class OpenAIMessageConverter(MessageConverter):
                             parts.append({"text": content["text"]})
                         elif content["type"] == "image_url":
                             parts.append(_convert_image(content["image_url"]["url"]))
-
+                            
+            if role == "model":
+                tool_calls = msg.get("tool_calls", [])
+                if tool_calls:
+                    for tool_call in tool_calls:
+                        args = tool_call.get("function").get("arguments")
+                        # 判断是否为json字符串,如果不是则尝试转换
+                        if isinstance(args, str):
+                            try:
+                                args = json.loads(args)
+                            except json.JSONDecodeError:
+                                print(f"args is not a json string: {args}")
+                                pass
+                        parts.append({
+                            "functionCall": {
+                                "name": tool_call.get("function").get("name"),
+                                "args": args
+                            }
+                        })
             if parts:
                 if role == "system":
                     system_instruction_parts.extend(parts)
