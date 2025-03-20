@@ -144,7 +144,7 @@ class OpenAIMessageConverter(MessageConverter):
                 # 转换为Gemini的functionResponse格式
                 print(f"function: {msg}")
                 parts.append({
-                    "function_response": {
+                    "functionResponse": {
                         "name": function_name,
                         "response": {
                             "content": {
