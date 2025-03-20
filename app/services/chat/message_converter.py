@@ -5,7 +5,7 @@ import re
 from typing import Any, Dict, List, Optional
 import requests
 import base64
-
+import json
 SUPPORTED_ROLES = ["user", "model", "system"]
 IMAGE_URL_PATTERN = r'\[image\]\((.*?)\)'
 
@@ -142,10 +142,18 @@ class OpenAIMessageConverter(MessageConverter):
                 tool_calls = msg.get("tool_calls", [])
                 if tool_calls:
                     for tool_call in tool_calls:
+                        args = tool_call.get("function").get("arguments")
+                        # 判断是否为json字符串,如果不是则尝试转换
+                        if isinstance(args, str):
+                            try:
+                                args = json.loads(args)
+                            except json.JSONDecodeError:
+                                print(f"args is not a json string: {args}")
+                                pass
                         parts.append({
                             "functionCall": {
                                 "name": tool_call.get("function").get("name"),
-                                "args": tool_call.get("function").get("arguments")
+                                "args": args
                             }
                         })
             elif role == "function":
