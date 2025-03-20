@@ -138,13 +138,13 @@ class OpenAIMessageConverter(MessageConverter):
                     # 处理可能包含图片的文本
                     parts.extend(_process_text_with_image(part))
             elif role == "function":
+                # 处理工具返回的消息 - Gemini格式为functionResponse
+                # 先确保有name字段，如果没有则尝试使用tool_call_id
+                function_name = msg.get("name") or msg.get("tool_call_id") or "unknown_function"
                 # 转换为Gemini的functionResponse格式
-                print(f"function: {msg}")
-                if msg.get("name"):
-                    msg["name"] = msg.get("tool_call_id")
                 parts.append({
-                    "function_response": {
-                        "name": msg.get("name"),
+                    "functionResponse": {
+                        "name": function_name,
                         "response": {
                             "content": msg.get("content")
                         }
