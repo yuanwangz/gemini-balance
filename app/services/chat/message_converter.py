@@ -395,7 +395,8 @@ def convert_to_text(file_base64: str, mime_type: str) -> tuple[str, str]:
                         if hasattr(shape, "text"):
                             texts.append(shape.text)
                     
-                    slide_texts.append(f"== 幻灯片 {slide_num} ==\n{'\n'.join(texts)}")
+                    newline = '\n'
+                    slide_texts.append(f"== 幻灯片 {slide_num} ==\n{newline.join(texts)}")
                 
                 text_content = "\n\n".join(slide_texts)
             except Exception as e:
