@@ -54,7 +54,7 @@ def _convert_file(file_url: str,api_key: str) -> Dict[str, Any]:
         encoded_data,mime_type = convert_to_text(encoded_data,mime_type)
     
     file_size = calculate_image_size(encoded_data)
-    print(f"file_size: {file_size}MB")
+    print(f"file_size: {file_size} MB")
     if file_size < 20:
         return {
             "inline_data": {
@@ -104,6 +104,10 @@ def _convert_file_to_base64(url: str) -> tuple[str, str]:
                 mime_type = 'application/vnd.ms-powerpoint'
             elif file_ext in ['.pptx', '.pptm', '.potx', '.potm', '.ppsx']:
                 mime_type = 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+            elif file_ext in ['.html', '.htm']:
+                mime_type = 'text/html'
+            elif file_ext in ['.xhtml']:
+                mime_type = 'application/xhtml+xml'
             
             # 2. 如果URL没有提供足够信息，可以检查文件头部字节
             if mime_type == 'application/octet-stream':
@@ -116,7 +120,22 @@ def _convert_file_to_base64(url: str) -> tuple[str, str]:
                 # Word .doc (旧格式)
                 elif binary_data[:8] in [b'\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1', b'\xCF\x11\xE0\xA1\xB1\x1A\xE1\x00']:
                     mime_type = 'application/msword'
+                # 检查是否为HTML文件（查找HTML标签的特征）
+                elif binary_data.lower().startswith(b'<!doctype html') or binary_data.lower().startswith(b'<html'):
+                    mime_type = 'text/html'
         
+        # 当MIME类型未设置或为空时，基于内容推测
+        if not mime_type or mime_type == 'application/octet-stream':
+            # 尝试检测HTML
+            try:
+                content_start = response.content[:100].lower().decode('utf-8', errors='ignore')
+                if '<!doctype html' in content_start or '<html' in content_start:
+                    mime_type = 'text/html'
+            except:
+                # 解码失败或其他错误时，保持原样
+                pass
+                
+        print(f"检测到MIME类型: {mime_type}")
         return file_data, mime_type
     else:
         raise Exception(f"Failed to fetch file: {response.status_code}")
@@ -290,30 +309,50 @@ def convert_to_text(file_base64: str, mime_type: str) -> tuple[str, str]:
     
     # 解码base64获取文件内容
     file_content = base64.b64decode(file_base64)
-    
-    # 创建临时文件
-    # with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-    #     temp_file.write(file_content)
-    #     temp_path = temp_file.name
-    
+     
     try:
         # 确定文件类型
-        file_type = None
-        if mime_type == 'application/msword' or mime_type == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
-            file_type = 'word'
-        elif mime_type == 'application/vnd.ms-excel' or mime_type == 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':
-            file_type = 'excel'
-        elif mime_type == 'application/vnd.ms-powerpoint' or mime_type == 'application/vnd.openxmlformats-officedocument.presentationml.presentation':
-            file_type = 'powerpoint'
         extension = '.bin'
+        if mime_type == 'application/msword':
+            extension = '.doc'
+        elif mime_type == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+            extension = '.docx'
+        elif mime_type == 'application/vnd.ms-excel':
+            extension = '.xls'
+        elif mime_type == 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':
+            extension = '.xlsx'
+        elif mime_type == 'application/vnd.ms-powerpoint':
+            extension = '.ppt'
+        elif mime_type == 'application/vnd.openxmlformats-officedocument.presentationml.presentation':
+            extension = '.pptx'
+        elif mime_type == 'text/html' or mime_type == 'application/xhtml+xml':
+            extension = '.html'
         with tempfile.NamedTemporaryFile(delete=False, suffix=extension) as temp_file:
             temp_file.write(file_content)
             temp_path = temp_file.name
         
+        file_type = None
+        if extension in ['.doc', '.docx']:
+            file_type = 'word'
+        elif extension in ['.xls', '.xlsx']:
+            file_type = 'excel'
+        elif extension in ['.ppt', '.pptx']:
+            file_type = 'powerpoint'
+        elif extension in ['.html', '.xhtml']:
+            file_type = 'html'
         # 根据文件类型转换
         text_content = ""
         print(f"file_type: {file_type}")
-        if file_type == 'word':
+        if file_type == 'html':
+            # 处理HTML文件 - 读取原始内容
+            try:
+                # 直接读取HTML文件内容
+                with open(temp_path, 'r', encoding='utf-8', errors='replace') as html_file:
+                    text_content = html_file.read()
+            except Exception as e:
+                text_content = f"读取HTML文件失败: {str(e)}"
+                print(f"HTML解析错误: {str(e)}")
+        elif file_type == 'word':
             # 处理Word文档
             from docx import Document
             try:
