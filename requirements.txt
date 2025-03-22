@@ -9,3 +9,7 @@ uvicorn
 google-genai
 jinja2
 python-multipart
+python-docx
+pandas
+openpyxl
+python-pptx

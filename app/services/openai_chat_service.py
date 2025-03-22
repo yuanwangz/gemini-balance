@@ -159,7 +159,7 @@ class OpenAIChatService:
     ) -> Union[Dict[str, Any], AsyncGenerator[str, None]]:
         """创建聊天完成"""
         # 转换消息格式
-        messages, instruction = self.message_converter.convert(request.messages)
+        messages, instruction = self.message_converter.convert(request.messages,api_key)
 
         # 构建请求payload
         payload = _build_payload(request, messages, instruction)
