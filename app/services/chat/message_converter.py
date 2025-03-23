@@ -92,7 +92,23 @@ def _convert_file_to_base64(url: str) -> tuple[str, str]:
             import os
             file_ext = os.path.splitext(url.split('?')[0].lower())[1]
             
-            if file_ext in ['.doc', '.dot']:
+            # 添加对常见图片格式的支持
+            if file_ext in ['.png']:
+                mime_type = 'image/png'
+            elif file_ext in ['.jpg', '.jpeg', '.jpe']:
+                mime_type = 'image/jpeg'
+            elif file_ext in ['.gif']:
+                mime_type = 'image/gif'
+            elif file_ext in ['.webp']:
+                mime_type = 'image/webp'
+            elif file_ext in ['.svg']:
+                mime_type = 'image/svg+xml'
+            elif file_ext in ['.bmp']:
+                mime_type = 'image/bmp'
+            elif file_ext in ['.tiff', '.tif']:
+                mime_type = 'image/tiff'
+            # 原有的Office文档支持
+            elif file_ext in ['.doc', '.dot']:
                 mime_type = 'application/msword'
             elif file_ext in ['.docx', '.docm', '.dotx', '.dotm']:
                 mime_type = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
@@ -112,10 +128,17 @@ def _convert_file_to_base64(url: str) -> tuple[str, str]:
             # 2. 如果URL没有提供足够信息，可以检查文件头部字节
             if mime_type == 'application/octet-stream':
                 binary_data = base64.b64decode(file_data)
-                # Word .docx, Excel .xlsx, PowerPoint .pptx (都是ZIP格式的OOXML文件)
-                if binary_data[:4] == b'PK\x03\x04':
-                    # 这里可以进一步检查ZIP内部结构判断具体Office类型
-                    # 为简单起见，暂时标记为通用Office Open XML格式
+                # 添加对常见图片格式的二进制头检测
+                if binary_data.startswith(b'\x89PNG\r\n\x1a\n'):
+                    mime_type = 'image/png'
+                elif binary_data.startswith(b'\xff\xd8\xff'):
+                    mime_type = 'image/jpeg'
+                elif binary_data.startswith(b'GIF87a') or binary_data.startswith(b'GIF89a'):
+                    mime_type = 'image/gif'
+                elif binary_data.startswith(b'RIFF') and b'WEBP' in binary_data[0:16]:
+                    mime_type = 'image/webp'
+                # 原有的文件类型检测
+                elif binary_data[:4] == b'PK\x03\x04':
                     mime_type = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
                 # Word .doc (旧格式)
                 elif binary_data[:8] in [b'\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1', b'\xCF\x11\xE0\xA1\xB1\x1A\xE1\x00']:
