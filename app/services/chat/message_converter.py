@@ -46,7 +46,6 @@ def _convert_file(file_url: str, api_key: str) -> Dict[str, Any]:
     file_size = None
     
     original_url = file_url  # 保存原始URL
-    print(f"original_url: {original_url}")
     
     if file_url.startswith("http"):
         encoded_data, mime_type = _convert_file_to_base64(file_url)
@@ -172,7 +171,7 @@ def _convert_file_to_base64(url: str) -> tuple[str, str]:
         raise Exception(f"Failed to fetch file: {response.status_code}")
 
 
-def _process_text_with_file(text: str,api_key: str) -> List[Dict[str, Any]]:
+def _process_text_with_file(text: str, api_key: str) -> List[Dict[str, Any]]:
     """
     处理可能包含文件URL的文本，提取文件并转换为base64
 
@@ -187,11 +186,19 @@ def _process_text_with_file(text: str,api_key: str) -> List[Dict[str, Any]]:
     if img_url_match:
         # 提取URL
         img_url = img_url_match.group(1)
+        
+        # 检查URL是否是有效URL（不是占位符如"链接地址"）
+        if img_url == "链接地址" or not (img_url.startswith("http") or img_url.startswith("data:")):
+            # 占位符或无效URL，作为纯文本处理
+            parts.append({"text": text})
+            return parts
+        
         # 将URL对应的图片转换为base64
         try:
-            inline_data = _convert_file(img_url,api_key)
+            inline_data = _convert_file(img_url, api_key)
             parts.append(inline_data)
-        except Exception:
+        except Exception as e:
+            print(f"转换文件失败: {str(e)}")
             # 如果转换失败，回退到文本模式
             parts.append({"text": text})
     else:
