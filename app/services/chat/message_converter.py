@@ -46,6 +46,7 @@ def _convert_file(file_url: str, api_key: str) -> Dict[str, Any]:
     file_size = None
     
     original_url = file_url  # 保存原始URL
+    print(f"original_url: {original_url}")
     
     if file_url.startswith("http"):
         encoded_data, mime_type = _convert_file_to_base64(file_url)
