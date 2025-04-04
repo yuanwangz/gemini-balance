@@ -40,21 +40,27 @@ def _get_mime_type_and_data(base64_string):
     # 如果不是预期格式，假定它只是数据部分
     return None, base64_string
 
-def _convert_file(file_url: str,api_key: str) -> Dict[str, Any]:
+def _convert_file(file_url: str, api_key: str) -> Dict[str, Any]:
     mime_type = None
     encoded_data = None
     file_size = None
+    
+    original_url = file_url  # 保存原始URL
+    
     if file_url.startswith("http"):
-        file_url,mime_type = _convert_file_to_base64(file_url)
-        encoded_data = file_url
-    if file_url.startswith("data:"):
+        encoded_data, mime_type = _convert_file_to_base64(file_url)
+        # 不再覆盖file_url变量
+    elif file_url.startswith("data:"):  # 使用elif而不是if
         mime_type, encoded_data = _get_mime_type_and_data(file_url)
+    
     print(f"mime_type: {mime_type}")
+    
     if _is_office_document(mime_type):
-        encoded_data,mime_type = convert_to_text(encoded_data,mime_type)
+        encoded_data, mime_type = convert_to_text(encoded_data, mime_type)
     
     file_size = calculate_image_size(encoded_data)
     print(f"file_size: {file_size} MB")
+    
     if file_size < 20:
         return {
             "inline_data": {
@@ -63,11 +69,12 @@ def _convert_file(file_url: str,api_key: str) -> Dict[str, Any]:
             }
         }
     else:
-        file_url,mime_type = upload_file_to_gemini(file_url,api_key,mime_type)
+        # 使用original_url或encoded_data上传
+        file_uri, upload_mime_type = upload_file_to_gemini(original_url if original_url.startswith("http") else encoded_data, api_key, mime_type)
         return {
             "file_data": {
-                "mime_type": mime_type,
-                "file_uri": file_url
+                "mime_type": upload_mime_type,
+                "file_uri": file_uri
             }
         }
 
