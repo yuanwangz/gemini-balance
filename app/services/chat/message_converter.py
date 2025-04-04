@@ -181,13 +181,8 @@ def _process_text_with_file(text: str,api_key: str) -> List[Dict[str, Any]]:
         img_url = img_url_match.group(1)
         # 将URL对应的图片转换为base64
         try:
-            base64_data,mime_type = _convert_file(img_url,api_key)
-            parts.append({
-                "inlineData": {
-                    "mimeType": mime_type,
-                    "data": base64_data
-                }
-            })
+            inline_data = _convert_file(img_url,api_key)
+            parts.append(inline_data)
         except Exception:
             # 如果转换失败，回退到文本模式
             parts.append({"text": text})
