@@ -20,10 +20,10 @@ class MessageConverter(ABC):
 def _get_mime_type_and_data(base64_string):
     """
     从 base64 字符串中提取 MIME 类型和数据。
-    
+
     参数:
         base64_string (str): 可能包含 MIME 类型信息的 base64 字符串
-        
+
     返回:
         tuple: (mime_type, encoded_data)
     """
@@ -36,7 +36,7 @@ def _get_mime_type_and_data(base64_string):
             mime_type = "image/jpeg" if match.group(1) == "image/jpg" else match.group(1)
             encoded_data = match.group(2)
             return mime_type, encoded_data
-    
+
     # 如果不是预期格式，假定它只是数据部分
     return None, base64_string
 
@@ -44,23 +44,23 @@ def _convert_file(file_url: str, api_key: str) -> Dict[str, Any]:
     mime_type = None
     encoded_data = None
     file_size = None
-    
+
     original_url = file_url  # 保存原始URL
-    
+
     if file_url.startswith("http"):
         encoded_data, mime_type = _convert_file_to_base64(file_url)
         # 不再覆盖file_url变量
     elif file_url.startswith("data:"):  # 使用elif而不是if
         mime_type, encoded_data = _get_mime_type_and_data(file_url)
-    
+
     print(f"mime_type: {mime_type}")
-    
+
     if _is_office_document(mime_type):
         encoded_data, mime_type = convert_to_text(encoded_data, mime_type)
-    
+
     file_size = calculate_image_size(encoded_data)
     print(f"file_size: {file_size} MB")
-    
+
     if file_size < 20:
         return {
             "inline_data": {
@@ -92,13 +92,13 @@ def _convert_file_to_base64(url: str) -> tuple[str, str]:
         # 将文件内容转换为base64
         file_data = base64.b64encode(response.content).decode('utf-8')
         mime_type = response.headers.get('Content-Type', 'application/octet-stream')
-        
+
         # 如果是通用二进制类型，尝试根据URL或文件头检测实际类型
         if mime_type == 'application/octet-stream':
             # 1. 从URL检测
             import os
             file_ext = os.path.splitext(url.split('?')[0].lower())[1]
-            
+
             # 添加对常见图片格式的支持
             if file_ext in ['.png']:
                 mime_type = 'image/png'
@@ -131,7 +131,7 @@ def _convert_file_to_base64(url: str) -> tuple[str, str]:
                 mime_type = 'text/html'
             elif file_ext in ['.xhtml']:
                 mime_type = 'application/xhtml+xml'
-            
+
             # 2. 如果URL没有提供足够信息，可以检查文件头部字节
             if mime_type == 'application/octet-stream':
                 binary_data = base64.b64decode(file_data)
@@ -153,7 +153,7 @@ def _convert_file_to_base64(url: str) -> tuple[str, str]:
                 # 检查是否为HTML文件（查找HTML标签的特征）
                 elif binary_data.lower().startswith(b'<!doctype html') or binary_data.lower().startswith(b'<html'):
                     mime_type = 'text/html'
-        
+
         # 当MIME类型未设置或为空时，基于内容推测
         if not mime_type or mime_type == 'application/octet-stream':
             # 尝试检测HTML
@@ -164,7 +164,7 @@ def _convert_file_to_base64(url: str) -> tuple[str, str]:
             except:
                 # 解码失败或其他错误时，保持原样
                 pass
-                
+
         print(f"检测到MIME类型: {mime_type}")
         return file_data, mime_type
     else:
@@ -186,13 +186,13 @@ def _process_text_with_file(text: str, api_key: str) -> List[Dict[str, Any]]:
     if img_url_match:
         # 提取URL
         img_url = img_url_match.group(1)
-        
+
         # 检查URL是否是有效URL（不是占位符如"链接地址"）
         if img_url == "链接地址" or not (img_url.startswith("http") or img_url.startswith("data:")):
             # 占位符或无效URL，作为纯文本处理
             parts.append({"text": text})
             return parts
-        
+
         # 将URL对应的图片转换为base64
         try:
             inline_data = _convert_file(img_url, api_key)
@@ -209,10 +209,10 @@ def _process_text_with_file(text: str, api_key: str) -> List[Dict[str, Any]]:
 def calculate_image_size(base64_data):
     # 解码base64数据
     image_data = base64.b64decode(base64_data)
-    
+
     # 计算二进制数据的长度
     data_length = len(image_data)
-    
+
     # 将长度转换为文件大小（以MB为单位）
     file_size = data_length / (1024 * 1024)  # MB
     return file_size
@@ -225,6 +225,9 @@ class OpenAIMessageConverter(MessageConverter):
         system_instruction_parts = []
 
         for idx, msg in enumerate(messages):
+            # 打印消息信息以便调试
+            print(f"Processing message {idx}: {msg.keys()}")
+
             role = msg.get("role", "")
             if role not in SUPPORTED_ROLES:
                 if role == "tool":
@@ -237,9 +240,44 @@ class OpenAIMessageConverter(MessageConverter):
                         role = "model"
 
             parts = []
+
+            # 检查是否有tool_calls字段
+            if role == "model" and "tool_calls" in msg:
+                tool_calls = msg.get("tool_calls", [])
+                print(f"Found tool_calls in message {idx}: {tool_calls}")
+                # 处理tool_calls
+                for tool_call in tool_calls:
+                    # 检查tool_call是否有function字段
+                    if "function" in tool_call and isinstance(tool_call["function"], dict):
+                        function_data = tool_call["function"]
+                        # 获取函数名
+                        function_name = function_data.get("name")
+                        if not function_name:
+                            print("Warning: tool_call missing function name")
+                            continue
+
+                        # 获取参数
+                        args = function_data.get("arguments")
+                        # 判断是否为json字符串,如果不是则尝试转换
+                        if isinstance(args, str):
+                            try:
+                                args = json.loads(args)
+                            except json.JSONDecodeError:
+                                print(f"args is not a json string: {args}")
+                                # 如果无法解析为JSON，保持原样
+
+                        parts.append({
+                            "functionCall": {
+                                "name": function_name,
+                                "args": args
+                            }
+                        })
+                    else:
+                        print(f"Warning: Invalid tool_call format: {tool_call}")
+
             # 特别处理最后一个assistant的消息，按\n\n分割
             content = msg.get("content")
-            if (role == "model" and 
+            if (role == "model" and
                 len(messages) > 2 and  # 确保至少有3条消息
                 idx == len(messages) - 2 and  # 最后第二条消息
                 isinstance(content, str) and  # 是字符串类型
@@ -251,56 +289,45 @@ class OpenAIMessageConverter(MessageConverter):
                         continue
                     # 处理可能包含图片的文本
                     parts.extend(_process_text_with_file(part, api_key))
-                
+
             elif role == "function":
                 # 处理工具返回的消息 - Gemini格式为functionResponse
                 # 先确保有name字段，如果没有则尝试使用tool_call_id
-                print(f"msg: {msg}")
+                print(f"Processing function message: {msg.keys()}")
                 content = msg.get("content")
-                print(f"content: {content}")
-                function_name = msg.get("name") or msg.get("tool_call_id") or "unknown_function"
+                print(f"Function content: {content}")
+                # 修改这里：优先使用 tool_call_id，因为这是新的消息格式
+                function_name = msg.get("tool_call_id") or msg.get("name") or "unknown_function"
+                # 检查content是否为None或空字符串
+                if content is None or (isinstance(content, str) and not content.strip()):
+                    # 如果content为空，使用默认值
+                    content = "No content provided"
                 # 转换为Gemini的functionResponse格式
                 parts.append({
                     "functionResponse": {
                         "name": function_name,
                         "response": {
                             "content": {
-                                "result": msg.get("content")
+                                "result": content
                             }
                         }
                     }
                 })
-            elif isinstance(msg["content"], str) and msg["content"]:
-                # 请求 gemini 接口时如果包含 content 字段但内容为空时会返回 400 错误，所以需要判断是否为空并移除
-                parts.extend(_process_text_with_file(msg["content"],api_key))
-            elif isinstance(msg["content"], list):
-                for content in msg["content"]:
-                    if isinstance(content, str) and content:
-                        parts.append({"text": content})
-                    elif isinstance(content, dict):
-                        if content["type"] == "text" and content["text"]:
-                            parts.append({"text": content["text"]})
-                        elif content["type"] == "image_url":
-                            parts.append(_convert_file(content["image_url"]["url"],api_key))
-                            
-            if role == "model":
-                tool_calls = msg.get("tool_calls", [])
-                if tool_calls:
-                    for tool_call in tool_calls:
-                        args = tool_call.get("function").get("arguments")
-                        # 判断是否为json字符串,如果不是则尝试转换
-                        if isinstance(args, str):
-                            try:
-                                args = json.loads(args)
-                            except json.JSONDecodeError:
-                                print(f"args is not a json string: {args}")
-                                pass
-                        parts.append({
-                            "functionCall": {
-                                "name": tool_call.get("function").get("name"),
-                                "args": args
-                            }
-                        })
+            elif "content" in msg:
+                if isinstance(msg["content"], str) and msg["content"]:
+                    # 请求 gemini 接口时如果包含 content 字段但内容为空时会返回 400 错误，所以需要判断是否为空并移除
+                    parts.extend(_process_text_with_file(msg["content"],api_key))
+                elif isinstance(msg["content"], list):
+                    for content in msg["content"]:
+                        if isinstance(content, str) and content:
+                            parts.append({"text": content})
+                        elif isinstance(content, dict):
+                            if "type" in content and content["type"] == "text" and "text" in content and content["text"]:
+                                parts.append({"text": content["text"]})
+                            elif "type" in content and content["type"] == "image_url" and "image_url" in content and "url" in content["image_url"]:
+                                parts.append(_convert_file(content["image_url"]["url"],api_key))
+
+            # tool_calls已在前面处理过了
             if parts:
                 if role == "system":
                     system_instruction_parts.extend(parts)
@@ -317,7 +344,7 @@ class OpenAIMessageConverter(MessageConverter):
         )
         # print(f"converted_messages: {converted_messages}")
         return converted_messages, system_instruction
-    
+
 def _is_office_document(mime_type: str) -> bool:
     """判断文件是否为Office文档"""
     office_mime_types = [
@@ -332,25 +359,25 @@ def _is_office_document(mime_type: str) -> bool:
         'application/vnd.oasis.opendocument.presentation'  # .odp
     ]
     return mime_type in office_mime_types
- 
+
 def convert_to_text(file_base64: str, mime_type: str) -> tuple[str, str]:
     """
     将Office文档转换为纯文本
-    
+
     Args:
         file_base64: 文件内容的base64编码
         mime_type: 文件的MIME类型
-        
+
     Returns:
         tuple: (文本内容的base64编码, 文本的MIME类型)
     """
     import tempfile
     import os
     import base64
-    
+
     # 解码base64获取文件内容
     file_content = base64.b64decode(file_base64)
-     
+
     try:
         # 确定文件类型
         extension = '.bin'
@@ -371,7 +398,7 @@ def convert_to_text(file_base64: str, mime_type: str) -> tuple[str, str]:
         with tempfile.NamedTemporaryFile(delete=False, suffix=extension) as temp_file:
             temp_file.write(file_content)
             temp_path = temp_file.name
-        
+
         file_type = None
         if extension in ['.doc', '.docx']:
             file_type = 'word'
@@ -401,51 +428,51 @@ def convert_to_text(file_base64: str, mime_type: str) -> tuple[str, str]:
                 # 简单提取段落文本
                 paragraphs = [para.text for para in doc.paragraphs if para.text.strip()]
                 print(f"找到 {len(paragraphs)} 个段落")
-                
+
                 # 处理表格内容（对合并单元格进行特殊处理）
                 table_contents = []
-                
+
                 # 只有在没有找到段落文本或者段落文本很少时才考虑表格内容
                 if len(paragraphs) < 5:  # 如果段落少于5个，也考虑表格内容
                     for table_idx, table in enumerate(doc.tables):
                         # 创建一个哈希表来记录已处理的文本内容
                         seen_text = set()
                         table_text = []
-                        
+
                         # 对表格每行处理
                         for row in table.rows:
                             row_text_parts = []
-                            
+
                             # 过滤掉重复的单元格文本
                             for cell in row.cells:
                                 cell_text = cell.text.strip()
                                 if cell_text and cell_text not in seen_text:
                                     row_text_parts.append(cell_text)
                                     seen_text.add(cell_text)
-                            
+
                             # 仅当有非空内容时添加该行
                             if row_text_parts:
                                 row_text = " | ".join(row_text_parts)
                                 table_text.append(row_text)
-                        
+
                         # 只有当表格有内容时才添加
                         if table_text:
                             formatted_table = f"== 表格 {table_idx+1} ==\n" + "\n".join(table_text)
                             table_contents.append(formatted_table)
-                
+
                 # 组合段落和表格内容
                 all_parts = []
                 if paragraphs:
                     all_parts.append("\n".join(paragraphs))
-                
+
                 if table_contents:
                     all_parts.append("\n\n".join(table_contents))
-                
+
                 # 最终组合所有部分
                 text_content = "\n\n".join(all_parts) if all_parts else "文档中没有找到文本内容"
             except Exception as e:
                 text_content = f"无法解析Word文档: {str(e)}"
-                
+
         elif file_type == 'excel':
             # 处理Excel文件
             import pandas as pd
@@ -453,65 +480,65 @@ def convert_to_text(file_base64: str, mime_type: str) -> tuple[str, str]:
                 # 读取所有工作表
                 excel_file = pd.ExcelFile(temp_path)
                 sheet_texts = []
-                
+
                 for sheet_name in excel_file.sheet_names:
                     df = pd.read_excel(excel_file, sheet_name=sheet_name)
                     sheet_texts.append(f"== 工作表: {sheet_name} ==\n{df.to_string(index=False)}")
-                
+
                 text_content = "\n\n".join(sheet_texts)
             except Exception as e:
                 text_content = f"无法解析Excel文件: {str(e)}"
-                
+
         elif file_type == 'powerpoint':
             # 处理PowerPoint文件
             from pptx import Presentation
             try:
                 prs = Presentation(temp_path)
                 slide_texts = []
-                
+
                 for slide_num, slide in enumerate(prs.slides, 1):
                     texts = []
                     for shape in slide.shapes:
                         if hasattr(shape, "text"):
                             texts.append(shape.text)
-                    
+
                     newline = '\n'
                     slide_texts.append(f"== 幻灯片 {slide_num} ==\n{newline.join(texts)}")
-                
+
                 text_content = "\n\n".join(slide_texts)
             except Exception as e:
                 text_content = f"无法解析PowerPoint文件: {str(e)}"
-        
+
         else:
             text_content = f"不支持的文件类型: {mime_type}"
-        
+
         # 将提取的文本编码为base64
         text_base64 = base64.b64encode(text_content.encode('utf-8')).decode('utf-8')
         return text_base64, 'text/plain'
-        
+
     except Exception as e:
         print(f"文档转换失败: {str(e)}")
         # 出错时返回原始文件
         return file_base64, mime_type
-        
+
     finally:
         # 清理临时文件
-        os.unlink(temp_path) 
+        os.unlink(temp_path)
 
 def upload_file_to_gemini(file_source: str, api_key: str, file_mime_type: Optional[str] = None) -> tuple[str, str]:
     """
     将文件URL或base64数据上传至Gemini API
-    
+
     Args:
         file_source: 文件URL或base64编码的文件数据
         api_key: Google API Key
         file_mime_type: 文件MIME类型，如果为None则自动检测
-        
+
     Returns:
         tuple: (Gemini API返回的文件URI, 文件MIME类型)
     """
     file_data = None
-    
+
     # 处理URL或base64格式的输入
     if file_source.startswith('http'):
         # 从URL下载文件
@@ -534,43 +561,43 @@ def upload_file_to_gemini(file_source: str, api_key: str, file_mime_type: Option
             file_data = base64.b64decode(file_source)
         except Exception:
             raise ValueError("Invalid file source format. Must be URL or base64 data.")
-    
+
     # 默认MIME类型
     if not file_mime_type:
         file_mime_type = 'application/octet-stream'
-    
+
     # 准备上传请求
     url = f"https://generativelanguage.googleapis.com/upload/v1beta/files?key={api_key}"
-    
+
     # 创建临时文件名
     import uuid
     temp_filename = f"temp_file_{uuid.uuid4()}"
-    
+
     # 准备multipart/form-data请求
     files = {
         'file': (temp_filename, file_data, file_mime_type)
     }
-    
+
     # 发送上传请求
     upload_response = requests.post(url, files=files)
-    
+
     if upload_response.status_code != 200:
         raise Exception(f"Failed to upload file: {upload_response.status_code}, {upload_response.text}")
-    
+
     # 打印完整响应内容，帮助调试
     print(f"upload_response status: {upload_response.status_code}")
     print(f"upload_response headers: {upload_response.headers}")
     print(f"upload_response text: {upload_response.text}")
-    
+
     # 检查响应内容是否为空
     if not upload_response.text.strip():
         raise Exception("File upload succeeded but response is empty")
-    
+
     try:
         response_data = upload_response.json()
         if 'file' not in response_data or 'uri' not in response_data['file']:
             raise Exception(f"Invalid response format: {response_data}")
-        
+
         # 返回文件URI
         return response_data['file']['uri'], file_mime_type
     except json.JSONDecodeError:
