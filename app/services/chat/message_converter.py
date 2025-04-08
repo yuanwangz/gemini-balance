@@ -225,8 +225,6 @@ class OpenAIMessageConverter(MessageConverter):
         system_instruction_parts = []
 
         for idx, msg in enumerate(messages):
-            # 打印消息信息以便调试
-            print(f"Processing message {idx}: {msg.keys()}")
 
             role = msg.get("role", "")
             if role not in SUPPORTED_ROLES:
@@ -241,30 +239,22 @@ class OpenAIMessageConverter(MessageConverter):
 
             parts = []
 
-            # 检查是否有tool_calls字段
+            # 处理tool_calls
             if role == "model" and "tool_calls" in msg:
                 tool_calls = msg.get("tool_calls", [])
-                print(f"Found tool_calls in message {idx}: {tool_calls}")
-                # 处理tool_calls
                 for tool_call in tool_calls:
-                    # 检查tool_call是否有function字段
                     if "function" in tool_call and isinstance(tool_call["function"], dict):
                         function_data = tool_call["function"]
-                        # 获取函数名
                         function_name = function_data.get("name")
                         if not function_name:
-                            print("Warning: tool_call missing function name")
                             continue
 
-                        # 获取参数
                         args = function_data.get("arguments")
-                        # 判断是否为json字符串,如果不是则尝试转换
                         if isinstance(args, str):
                             try:
                                 args = json.loads(args)
                             except json.JSONDecodeError:
-                                print(f"args is not a json string: {args}")
-                                # 如果无法解析为JSON，保持原样
+                                pass
 
                         parts.append({
                             "functionCall": {
@@ -272,8 +262,6 @@ class OpenAIMessageConverter(MessageConverter):
                                 "args": args
                             }
                         })
-                    else:
-                        print(f"Warning: Invalid tool_call format: {tool_call}")
 
             # 特别处理最后一个assistant的消息，按\n\n分割
             content = msg.get("content")
@@ -291,18 +279,12 @@ class OpenAIMessageConverter(MessageConverter):
                     parts.extend(_process_text_with_file(part, api_key))
 
             elif role == "function":
-                # 处理工具返回的消息 - Gemini格式为functionResponse
-                # 先确保有name字段，如果没有则尝试使用tool_call_id
-                print(f"Processing function message: {msg.keys()}")
+                # 处理工具返回的消息
                 content = msg.get("content")
-                print(f"Function content: {content}")
-                # 修改这里：优先使用 tool_call_id，因为这是新的消息格式
                 function_name = msg.get("tool_call_id") or msg.get("name") or "unknown_function"
                 # 检查content是否为None或空字符串
                 if content is None or (isinstance(content, str) and not content.strip()):
-                    # 如果content为空，使用默认值
                     content = "No content provided"
-                # 转换为Gemini的functionResponse格式
                 parts.append({
                     "functionResponse": {
                         "name": function_name,
