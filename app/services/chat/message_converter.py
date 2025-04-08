@@ -229,25 +229,28 @@ class OpenAIMessageConverter(MessageConverter):
             if role not in SUPPORTED_ROLES:
                 if role == "tool":
                     role = "function"
-                if role == "assistant":
-                    role = "model"
-                # else:
-                #     # 如果是最后一条消息，则认为是用户消息
-                #     if idx == len(messages) - 1:
-                #         role = "user"
-                #     else:
-                #         role = "model"
+                else:
+                    # 如果是最后一条消息，则认为是用户消息
+                    if idx == len(messages) - 1:
+                        role = "user"
+                    else:
+                        role = "model"
 
             parts = []
             # 特别处理最后一个assistant的消息，按\n\n分割
-            if role == "model" and idx == len(messages) - 2 and msg.get("content") and isinstance(msg.get("content"), str):
+            content = msg.get("content")
+            if (role == "model" and 
+                len(messages) > 2 and  # 确保至少有3条消息
+                idx == len(messages) - 2 and  # 最后第二条消息
+                isinstance(content, str) and  # 是字符串类型
+                content.strip()):  # 非空字符串
                 # 按\n\n分割消息
-                content_parts = msg["content"].split("\n\n")
+                content_parts = content.split("\n\n")
                 for part in content_parts:
                     if not part.strip():  # 跳过空内容
                         continue
                     # 处理可能包含图片的文本
-                    parts.extend(_process_text_with_file(part,api_key))
+                    parts.extend(_process_text_with_file(part, api_key))
                 
             elif role == "function":
                 # 处理工具返回的消息 - Gemini格式为functionResponse
