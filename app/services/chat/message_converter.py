@@ -312,7 +312,7 @@ class OpenAIMessageConverter(MessageConverter):
                 "parts": system_instruction_parts,
             }
         )
-        print(f"converted_messages: {converted_messages}")
+        # print(f"converted_messages: {converted_messages}")
         return converted_messages, system_instruction
     
 def _is_office_document(mime_type: str) -> bool:
