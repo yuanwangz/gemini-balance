@@ -229,12 +229,14 @@ class OpenAIMessageConverter(MessageConverter):
             if role not in SUPPORTED_ROLES:
                 if role == "tool":
                     role = "function"
-                else:
-                    # 如果是最后一条消息，则认为是用户消息
-                    if idx == len(messages) - 1:
-                        role = "user"
-                    else:
-                        role = "model"
+                if role == "assistant":
+                    role = "model"
+                # else:
+                #     # 如果是最后一条消息，则认为是用户消息
+                #     if idx == len(messages) - 1:
+                #         role = "user"
+                #     else:
+                #         role = "model"
 
             parts = []
             # 特别处理最后一个assistant的消息，按\n\n分割
