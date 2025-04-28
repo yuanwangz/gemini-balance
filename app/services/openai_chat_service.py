@@ -112,7 +112,8 @@ def _build_payload(
     }
     if request.model.endswith("-image") or request.model.endswith("-image-generation"):
         payload["generationConfig"]["responseModalities"] = ["Text","Image"]
-        
+    if request.model.endswith("-nothinking"):
+         payload["generationConfig"]["thinkingConfig"] = {"thinkingBudget": 0}     
     if (
         instruction
         and isinstance(instruction, dict)

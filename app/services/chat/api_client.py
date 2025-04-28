@@ -29,6 +29,8 @@ class GeminiApiClient(ApiClient):
             model = model[:-7]
         if model.endswith("-image"):
             model = model[:-6]
+        if model.endswith("-nothinking"):
+            model = model[:-11]
 
         return model
 
