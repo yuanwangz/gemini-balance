@@ -27,7 +27,7 @@ def _build_tools(model: str, payload: Dict[str, Any]) -> List[Dict[str, Any]]:
     """构建工具"""
     tools = []
     if settings.TOOLS_CODE_EXECUTION_ENABLED and not (
-            model.endswith("-search") or "-thinking" in model
+            model.endswith("-search") or "-thinking" in model or "-nothinking" in model
     ) and not _has_image_parts(payload.get("contents", [])):
         tools.append({"code_execution": {}})
     if model.endswith("-search"):

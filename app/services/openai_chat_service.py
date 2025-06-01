@@ -36,7 +36,7 @@ def _build_tools(
     if (
             settings.TOOLS_CODE_EXECUTION_ENABLED
             and not (model.endswith("-search") or "-thinking" in model or model.endswith("-image") or model.endswith("-image-generation"))
-            and not _has_image_parts(messages)
+            and not _has_image_parts(messages) or "-nothinking" in model
     ):
         tools.append({"code_execution": {}})
     if model.endswith("-search"):
