@@ -140,7 +140,7 @@ def _extract_result(response: Dict[str, Any], model: str, stream: bool = False, 
             if not parts:
                 return "", []
             if "text" in parts[0]:
-                text = parts[0].get("text")
+                text = parts[0].get("text", "")
             elif "executableCode" in parts[0]:
                 text = _format_code_block(parts[0]["executableCode"])
             elif "codeExecution" in parts[0]:
@@ -165,25 +165,27 @@ def _extract_result(response: Dict[str, Any], model: str, stream: bool = False, 
             if "thinking" in model:
                 if settings.SHOW_THINKING_PROCESS:
                     if len(candidate["content"]["parts"]) == 2:
+                        thinking_text = candidate["content"]["parts"][0].get("text", "")
+                        output_text = candidate["content"]["parts"][1].get("text", "")
                         text = (
                                 "> thinking\n\n"
-                                + candidate["content"]["parts"][0]["text"]
+                                + thinking_text
                                 + "\n\n---\n> output\n\n"
-                                + candidate["content"]["parts"][1]["text"]
+                                + output_text
                         )
                     else:
-                        text = candidate["content"]["parts"][0]["text"]
+                        text = candidate["content"]["parts"][0].get("text", "")
                 else:
                     if len(candidate["content"]["parts"]) == 2:
-                        text = candidate["content"]["parts"][1]["text"]
+                        text = candidate["content"]["parts"][1].get("text", "")
                     else:
-                        text = candidate["content"]["parts"][0]["text"]
+                        text = candidate["content"]["parts"][0].get("text", "")
             else:
                 text = ""
                 if "parts" in candidate["content"]:
                     for part in candidate["content"]["parts"]:
-                        if "text" in part:
-                            text += part["text"]
+                        if "text" in part and part["text"] is not None:
+                            text += str(part["text"])
                         elif "inlineData" in part:
                             text += _extract_image_data(part)
 
@@ -192,6 +194,9 @@ def _extract_result(response: Dict[str, Any], model: str, stream: bool = False, 
             tool_calls = _extract_tool_calls(candidate["content"]["parts"], gemini_format)
         else:
             text = "暂无返回"
+    # 确保 text 始终是字符串类型
+    if not isinstance(text, str):
+        text = str(text) if text is not None else ""
     return text, tool_calls
 
 def _extract_image_data(part: dict) -> str:
