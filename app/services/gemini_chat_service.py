@@ -27,7 +27,7 @@ def _build_tools(model: str, payload: Dict[str, Any]) -> List[Dict[str, Any]]:
     """构建工具"""
     tools = []
     if settings.TOOLS_CODE_EXECUTION_ENABLED and not (
-            model.endswith("-search") or "-thinking" in model or "-nothinking" in model
+            model.endswith("-search") or "-thinking" in model
     ) and not _has_image_parts(payload.get("contents", [])):
         tools.append({"code_execution": {}})
     if model.endswith("-search"):
@@ -75,7 +75,11 @@ def _build_payload(model: str, request: GeminiRequest) -> Dict[str, Any]:
         payload.pop("systemInstruction")
         payload["generationConfig"]["responseModalities"] = ["Text","Image"]
     if model.endswith("-nothinking"):
-         payload["generationConfig"]["thinkingConfig"] = {"thinkingBudget": 0} 
+        if "pro" in model:
+            payload["generationConfig"]["thinkingConfig"] = {"thinkingBudget": 128} 
+        else:
+            payload["generationConfig"]["thinkingConfig"] = {"thinkingBudget": 0}
+            
     return payload
 
 

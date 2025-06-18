@@ -36,7 +36,7 @@ def _build_tools(
     if (
             settings.TOOLS_CODE_EXECUTION_ENABLED
             and not (model.endswith("-search") or "-thinking" in model or model.endswith("-image") or model.endswith("-image-generation"))
-            and not _has_image_parts(messages) or "-nothinking" in model
+            and not _has_image_parts(messages)
     ):
         tools.append({"code_execution": {}})
     if model.endswith("-search"):
@@ -113,7 +113,11 @@ def _build_payload(
     if request.model.endswith("-image") or request.model.endswith("-image-generation"):
         payload["generationConfig"]["responseModalities"] = ["Text","Image"]
     if request.model.endswith("-nothinking"):
-         payload["generationConfig"]["thinkingConfig"] = {"thinkingBudget": 0}     
+        if "pro" in request.model:
+            payload["generationConfig"]["thinkingConfig"] = {"thinkingBudget": 128} 
+        else:
+            payload["generationConfig"]["thinkingConfig"] = {"thinkingBudget": 0}
+         
     if (
         instruction
         and isinstance(instruction, dict)
